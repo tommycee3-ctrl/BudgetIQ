@@ -16,18 +16,20 @@ export class BankConnectionService {
     async connectBank(
         userId: number,
         setupToken: string,
-        friendlyName = "Connected Bank"
+        displayName = "Connected Bank"
     ) {
+
         const accessUrl = await simplefin.claimSetupToken(setupToken);
+
         const accounts = await simplefin.fetchAccounts(accessUrl);
 
         const encryptedAccessUrl = encryption.encrypt(accessUrl);
 
-        const connectionResult = db.prepare(`
+        const result = db.prepare(`
             INSERT INTO bank_connections (
                 user_id,
                 provider,
-                friendly_name,
+                display_name,
                 encrypted_access_url,
                 enabled
             )
@@ -35,29 +37,31 @@ export class BankConnectionService {
         `).run(
             userId,
             "simplefin",
-            friendlyName,
+            displayName,
             encryptedAccessUrl,
             1
         );
 
-        const connectionId = Number(connectionResult.lastInsertRowid);
+        const connectionId = Number(result.lastInsertRowid);
 
         this.saveAccounts(connectionId, accounts);
 
         return {
             connectionId,
             provider: "simplefin",
-            friendlyName,
+            displayName,
             accounts: this.getAccounts(connectionId)
         };
+
     }
 
     getConnections(userId: number) {
+
         return db.prepare(`
             SELECT
                 id,
                 provider,
-                friendly_name AS friendlyName,
+                display_name AS displayName,
                 last_sync AS lastSync,
                 enabled,
                 created_at AS createdAt
@@ -65,9 +69,11 @@ export class BankConnectionService {
             WHERE user_id = ?
             ORDER BY created_at DESC
         `).all(userId);
+
     }
 
     getAccounts(connectionId: number): SavedBankAccount[] {
+
         return db.prepare(`
             SELECT
                 id,
@@ -83,9 +89,11 @@ export class BankConnectionService {
             ...row,
             enabled: Boolean(row.enabled)
         }));
+
     }
 
     getDecryptedAccessUrl(connectionId: number): string {
+
         const row = db.prepare(`
             SELECT encrypted_access_url
             FROM bank_connections
@@ -94,16 +102,18 @@ export class BankConnectionService {
         `).get(connectionId) as any;
 
         if (!row) {
-            throw new Error("Bank connection not found.");
+            throw new Error("Connection not found.");
         }
 
         return encryption.decrypt(row.encrypted_access_url);
+
     }
 
     private saveAccounts(
         connectionId: number,
         accounts: SimpleFINAccount[]
     ) {
+
         const insert = db.prepare(`
             INSERT OR REPLACE INTO bank_accounts (
                 connection_id,
@@ -113,26 +123,36 @@ export class BankConnectionService {
                 enabled
             )
             VALUES (?, ?, ?, ?, COALESCE(
-                (SELECT enabled FROM bank_accounts WHERE external_id = ?),
+                (
+                    SELECT enabled
+                    FROM bank_accounts
+                    WHERE external_id = ?
+                ),
                 1
             ))
         `);
 
         const transaction = db.transaction(() => {
+
             for (const account of accounts) {
+
                 insert.run(
                     connectionId,
                     account.id,
-                    account.name || "Unnamed Account",
-                    account.org?.name || null,
+                    account.name ?? "Unnamed Account",
+                    account.org?.name ?? null,
                     account.id
                 );
+
             }
+
         });
 
         transaction();
+
     }
 
 }
 
-export const bankConnectionService = new BankConnectionService();
+export const bankConnectionService =
+    new BankConnectionService();
