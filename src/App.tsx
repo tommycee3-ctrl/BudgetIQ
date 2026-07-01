@@ -1,7 +1,9 @@
 ﻿import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Login } from "./pages/Login/Login";
-import type { AppPage } from "./types/app";`nimport { Dashboard } from "./pages/Dashboard/Dashboard";
+import { Dashboard } from "./pages/Dashboard/Dashboard";
+import { BankConnections } from "./pages/BankConnections/BankConnections";
+import type { AppPage } from "./types/app";
 import "./styles.css";
 
 type LoginUser = {
@@ -19,6 +21,7 @@ const navItems: { id: AppPage; label: string; tommyOnly?: boolean }[] = [
   { id: "card", label: "Spending Card" },
   { id: "transactions", label: "Transactions" },
   { id: "flex", label: "Amazon Flex", tommyOnly: true },
+  { id: "bank", label: "Bank Connections" },
   { id: "settings", label: "Settings" }
 ];
 
@@ -75,59 +78,29 @@ function App() {
         <header className="topbar">
           <div>
             <h1>{page === "card" ? cardLabel : page[0].toUpperCase() + page.slice(1)}</h1>
-            <p>Welcome back, {user.name} {isAshley ? "✨🦄" : "👋"} · v0.2.3 Alpha</p>
+            <p>Welcome back, {user.name} {isAshley ? "✨🦄" : "👋"} · v0.6.4 Alpha</p>
           </div>
           <button className="switch-btn" onClick={logout}>Logout</button>
         </header>
 
         <section className="content">
-          {page === "dashboard" && <Dashboard userName={user.name} hasAmazonFlex={user.hasAmazonFlex} cardLabel={cardLabel} />}
-          {page !== "dashboard" && <PageView page={page} user={user} cardLabel={cardLabel} />}
+          {page === "dashboard" && (
+            <Dashboard
+              userName={user.name}
+              hasAmazonFlex={user.hasAmazonFlex}
+              cardLabel={cardLabel}
+            />
+          )}
+
+          {page === "bank" && <BankConnections userId={user.id} />}
+
+          {page !== "dashboard" && page !== "bank" && (
+            <PageView page={page} user={user} cardLabel={cardLabel} />
+          )}
         </section>
       </main>
     </div>
   );
-}
-
-function Dashboard({ user, cardLabel }: { user: LoginUser; cardLabel: string }) {
-  const data = user.theme === "tommy"
-    ? { bills: "$415.00", spending: "$704.36", save: "$400.00", cash: "$795.24" }
-    : { bills: "$350.00", spending: "$980.00", save: "$420.00", cash: "$1,250.00" };
-
-  return (
-    <>
-      <section className="stats-grid">
-        <Metric title="Bills Remaining" value={data.bills} sub="Unpaid bills only" />
-        <Metric title="Spending Budget" value={data.spending} sub={`Groceries + misc + ${cardLabel}`} />
-        <Metric title="Available to Save" value={data.save} sub="After bills, spending, cushion" />
-        <Metric title="Cash Left" value={data.cash} sub="Live checking estimate" />
-      </section>
-
-      <section className="two-col">
-        <div className="panel">
-          <h2>Upcoming Paycheck</h2>
-          <div className="countdown">
-            <div><strong>12</strong><span>Days</span></div>
-            <div><strong>14</strong><span>Hours</span></div>
-            <div><strong>32</strong><span>Minutes</span></div>
-          </div>
-          <p>Paycheck #2 · Jun 26 · $2,164.60</p>
-        </div>
-
-        {user.hasAmazonFlex && (
-          <div className="panel">
-            <h2>Amazon Flex</h2>
-            <div className="big-money">$0.00</div>
-            <p>Tommy only income tracker</p>
-          </div>
-        )}
-      </section>
-    </>
-  );
-}
-
-function Metric({ title, value, sub }: { title: string; value: string; sub: string }) {
-  return <div className="metric"><p>{title}</p><h2>{value}</h2><span>{sub}</span></div>;
 }
 
 function PageView({ page, user, cardLabel }: { page: AppPage; user: LoginUser; cardLabel: string }) {
@@ -136,4 +109,3 @@ function PageView({ page, user, cardLabel }: { page: AppPage; user: LoginUser; c
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
-
