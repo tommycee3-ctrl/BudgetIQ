@@ -1,0 +1,70 @@
+﻿.login-screen {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, rgba(21,157,255,.25), transparent 35%), #050b14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+}
+
+.login-card {
+  width: min(440px, 100%);
+  padding: 34px;
+  border-radius: 28px;
+  background: rgba(13, 24, 42, .9);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 0 45px rgba(21,157,255,.18);
+  color: white;
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 42px;
+}
+
+.login-card h1 span {
+  color: #159dff;
+}
+
+.login-card p {
+  opacity: .7;
+  margin-bottom: 26px;
+}
+
+.login-users {
+  display: grid;
+  gap: 14px;
+}
+
+.login-users button {
+  border: 0;
+  border-radius: 18px;
+  padding: 18px;
+  text-align: left;
+  color: white;
+  background: linear-gradient(135deg, #123154, #0a1528);
+  cursor: pointer;
+}
+
+.login-users button strong {
+  display: block;
+  font-size: 20px;
+}
+
+.login-users button span {
+  display: block;
+  margin-top: 5px;
+  opacity: .7;
+}
+
+.login-users .ashley-login {
+  background: linear-gradient(135deg, #9b5cff, #ff4faf);
+}
+
+.remember {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 22px;
+  opacity: .8;
+}

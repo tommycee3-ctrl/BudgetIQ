@@ -1,11 +1,10 @@
 ﻿import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Login } from "./pages/Login/Login";
+import { USERS, type AppPage, type UserKey } from "./types/app";
 import "./styles.css";
 
-type User = "tommy" | "ashley";
-type Page = "dashboard" | "budget" | "bills" | "card" | "transactions" | "flex" | "settings";
-
-const navItems: { id: Page; label: string; tommyOnly?: boolean }[] = [
+const navItems: { id: AppPage; label: string; tommyOnly?: boolean }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "budget", label: "Budget" },
   { id: "bills", label: "Bills" },
@@ -16,27 +15,31 @@ const navItems: { id: Page; label: string; tommyOnly?: boolean }[] = [
 ];
 
 function App() {
-  const [user, setUser] = useState<User>("tommy");
-  const [page, setPage] = useState<Page>("dashboard");
+  const [userKey, setUserKey] = useState<UserKey | null>(null);
+  const [page, setPage] = useState<AppPage>("dashboard");
 
-  const isAshley = user === "ashley";
+  if (!userKey) {
+    return <Login onLogin={(nextUser) => setUserKey(nextUser)} />;
+  }
+
+  const user = USERS[userKey];
+  const isAshley = user.key === "ashley";
   const cardLabel = isAshley ? "Spennnin Money" : "Spending Card";
+  const visibleNav = navItems.filter(item => !item.tommyOnly || user.hasAmazonFlex);
 
-  function switchUser(next: User) {
-    setUser(next);
+  function logout() {
+    setUserKey(null);
     setPage("dashboard");
   }
 
-  const visibleNav = navItems.filter(item => !item.tommyOnly || user === "tommy");
-
   return (
-    <div className={`app ${isAshley ? "ashley" : "tommy"}`}>
+    <div className={`app ${user.theme}`}>
       <aside className="sidebar">
         <div className="brand">Budget<span>IQ</span></div>
 
-        <div className="user-switch">
-          <button className={user === "tommy" ? "active" : ""} onClick={() => switchUser("tommy")}>Tommy</button>
-          <button className={user === "ashley" ? "active" : ""} onClick={() => switchUser("ashley")}>Ashley</button>
+        <div className="profile-pill">
+          <strong>{user.name}</strong>
+          <span>{isAshley ? "Pink Unicorn Theme" : "Blue Tech Theme"}</span>
         </div>
 
         <nav>
@@ -56,22 +59,22 @@ function App() {
         <header className="topbar">
           <div>
             <h1>{page === "card" ? cardLabel : page[0].toUpperCase() + page.slice(1)}</h1>
-            <p>{isAshley ? "Welcome back, Ashley ???" : "Welcome back, Tommy ??"} · v0.2.0 Alpha</p>
+            <p>{isAshley ? "Welcome back, Ashley ✨🦄" : "Welcome back, Tommy 👋"} · v0.2.2 Alpha</p>
           </div>
-          <button className="switch-btn" onClick={() => switchUser(isAshley ? "tommy" : "ashley")}>Switch User</button>
+          <button className="switch-btn" onClick={logout}>Logout</button>
         </header>
 
         <section className="content">
-          {page === "dashboard" && <Dashboard user={user} cardLabel={cardLabel} />}
-          {page !== "dashboard" && <PageView page={page} user={user} cardLabel={cardLabel} />}
+          {page === "dashboard" && <Dashboard userKey={user.key} cardLabel={cardLabel} />}
+          {page !== "dashboard" && <PageView page={page} userKey={user.key} cardLabel={cardLabel} />}
         </section>
       </main>
     </div>
   );
 }
 
-function Dashboard({ user, cardLabel }: { user: User; cardLabel: string }) {
-  const data = user === "tommy"
+function Dashboard({ userKey, cardLabel }: { userKey: UserKey; cardLabel: string }) {
+  const data = userKey === "tommy"
     ? { bills: "$415.00", spending: "$704.36", save: "$400.00", cash: "$795.24" }
     : { bills: "$350.00", spending: "$980.00", save: "$420.00", cash: "$1,250.00" };
 
@@ -95,7 +98,7 @@ function Dashboard({ user, cardLabel }: { user: User; cardLabel: string }) {
           <p>Paycheck #2 · Jun 26 · $2,164.60</p>
         </div>
 
-        {user === "tommy" && (
+        {userKey === "tommy" && (
           <div className="panel">
             <h2>Amazon Flex</h2>
             <div className="big-money">$0.00</div>
@@ -106,7 +109,7 @@ function Dashboard({ user, cardLabel }: { user: User; cardLabel: string }) {
 
       <section className="two-col">
         <ListPanel title="Bills" items={["State Farm — $16.00", "YouTube Premium — $17.00", "Cricket Wireless — $98.00", "MUD Half Payment — $84.00"]} />
-        <ListPanel title="Recent Transactions" items={["Bakers ? Groceries", "Amazon ? Misc", `Card Transfer ? ${cardLabel}`]} />
+        <ListPanel title="Recent Transactions" items={["Bakers → Groceries", "Amazon → Misc", `Card Transfer → ${cardLabel}`]} />
       </section>
     </>
   );
@@ -133,14 +136,14 @@ function ListPanel({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function PageView({ page, user, cardLabel }: { page: Page; user: User; cardLabel: string }) {
+function PageView({ page, userKey, cardLabel }: { page: AppPage; userKey: UserKey; cardLabel: string }) {
   const title = page === "card" ? cardLabel : page[0].toUpperCase() + page.slice(1);
 
   return (
     <div className="panel full">
       <h2>{title}</h2>
       <p>This section is ready to connect to the database next.</p>
-      {page === "flex" && user === "tommy" && <p>Amazon Flex is only enabled for Tommy.</p>}
+      {page === "flex" && userKey === "tommy" && <p>Amazon Flex is only enabled for Tommy.</p>}
     </div>
   );
 }

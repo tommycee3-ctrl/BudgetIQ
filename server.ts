@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 
@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
-    app: "BudgetIQ",
+    app: "CasellaIQ",
     version: "0.2.0"
   });
 });
@@ -21,5 +21,6 @@ app.get("/api/health", (_req, res) => {
 app.use(express.static(path.join(process.cwd(), "public")));
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`BudgetIQ API running at http://localhost:${PORT}`);
+  console.log(`CasellaIQ API running at http://localhost:${PORT}`);
 });
+
