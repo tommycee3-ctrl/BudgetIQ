@@ -1,0 +1,253 @@
+﻿* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Segoe UI, Arial, sans-serif;
+  background: #050b14;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  color: white;
+}
+
+.sidebar {
+  width: 245px;
+  padding: 24px;
+  background: rgba(8, 15, 28, .96);
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+
+.brand {
+  font-size: 30px;
+  font-weight: 900;
+  margin-bottom: 24px;
+}
+
+.brand span { color: #159dff; }
+
+.user-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+button {
+  cursor: pointer;
+}
+
+.user-switch button,
+nav button,
+.switch-btn {
+  border: 0;
+  border-radius: 14px;
+  padding: 12px;
+  color: white;
+  background: rgba(255,255,255,.07);
+  font-weight: 800;
+}
+
+.user-switch button.active {
+  background: #159dff;
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+nav button {
+  text-align: left;
+  font-size: 15px;
+  transition: .2s;
+}
+
+nav button.nav-active {
+  background: linear-gradient(90deg, #159dff, #005dff);
+  box-shadow: 0 0 18px rgba(21,157,255,.45);
+  transform: translateX(4px);
+}
+
+main {
+  flex: 1;
+  padding: 28px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 34px;
+}
+
+.topbar p {
+  margin: 5px 0 0;
+  opacity: .7;
+}
+
+.switch-btn {
+  background: #159dff;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.metric,
+.panel {
+  background: linear-gradient(180deg, rgba(20,34,55,.95), rgba(7,13,24,.95));
+  border: 1px solid rgba(60,150,255,.24);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 0 30px rgba(0,110,255,.12);
+}
+
+.metric p {
+  margin: 0 0 12px;
+  opacity: .72;
+}
+
+.metric h2 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.metric span {
+  display: block;
+  margin-top: 8px;
+  opacity: .62;
+  font-size: 13px;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.panel li {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.countdown {
+  display: flex;
+  gap: 12px;
+}
+
+.countdown div {
+  flex: 1;
+  padding: 16px;
+  border-radius: 16px;
+  text-align: center;
+  background: rgba(21,157,255,.12);
+}
+
+.countdown strong {
+  display: block;
+  font-size: 32px;
+  color: #159dff;
+}
+
+.countdown span {
+  opacity: .65;
+  font-size: 12px;
+}
+
+.big-money {
+  font-size: 42px;
+  font-weight: 900;
+  color: #00f060;
+}
+
+.full {
+  min-height: 300px;
+}
+
+/* Ashley theme */
+.app.ashley {
+  background: linear-gradient(135deg, #ffe6f5, #f5dcff);
+  color: #35135c;
+}
+
+.app.ashley .sidebar {
+  background: linear-gradient(180deg, #7d2bd1, #ff7ac8);
+}
+
+.app.ashley .brand span {
+  color: #ffd6f1;
+}
+
+.app.ashley .metric,
+.app.ashley .panel {
+  background: rgba(255,255,255,.74);
+  border-color: rgba(255,120,210,.45);
+  box-shadow: 0 0 28px rgba(255,120,210,.28);
+}
+
+.app.ashley nav button.nav-active,
+.app.ashley .user-switch button.active,
+.app.ashley .switch-btn {
+  background: linear-gradient(90deg, #ff4faf, #9b5cff);
+}
+
+.app.ashley .countdown strong {
+  color: #d62fa4;
+}
+
+/* Mobile */
+@media (max-width: 850px) {
+  .app {
+    display: block;
+  }
+
+  .sidebar {
+    width: 100%;
+  }
+
+  nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  main {
+    padding: 16px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .stats-grid,
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar h1 {
+    font-size: 28px;
+  }
+}
+
