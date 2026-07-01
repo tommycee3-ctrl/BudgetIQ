@@ -1,0 +1,66 @@
+﻿.dashboard-page {
+  display: grid;
+  gap: 20px;
+}
+
+.hero-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  padding: 28px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(21,157,255,.24), rgba(8,16,30,.95));
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 0 35px rgba(21,157,255,.18);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-size: 12px;
+  opacity: .7;
+}
+
+.hero-panel h2 {
+  margin: 0;
+  font-size: 34px;
+}
+
+.iq-score {
+  min-width: 135px;
+  text-align: center;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(0,0,0,.25);
+}
+
+.iq-score span,
+.iq-score small {
+  display: block;
+  opacity: .7;
+}
+
+.iq-score strong {
+  display: block;
+  font-size: 48px;
+  color: #00f060;
+}
+
+.app.ashley .hero-panel {
+  background: linear-gradient(135deg, rgba(255,79,175,.35), rgba(255,255,255,.75));
+}
+
+.app.ashley .iq-score strong {
+  color: #d62fa4;
+}
+
+@media (max-width: 850px) {
+  .hero-panel {
+    display: block;
+  }
+
+  .iq-score {
+    margin-top: 18px;
+  }
+}

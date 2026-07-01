@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Login } from "./pages/Login/Login";
-import type { AppPage } from "./types/app";
+import type { AppPage } from "./types/app";`nimport { Dashboard } from "./pages/Dashboard/Dashboard";
 import "./styles.css";
 
 type LoginUser = {
@@ -81,7 +81,7 @@ function App() {
         </header>
 
         <section className="content">
-          {page === "dashboard" && <Dashboard user={user} cardLabel={cardLabel} />}
+          {page === "dashboard" && <Dashboard userName={user.name} hasAmazonFlex={user.hasAmazonFlex} cardLabel={cardLabel} />}
           {page !== "dashboard" && <PageView page={page} user={user} cardLabel={cardLabel} />}
         </section>
       </main>
@@ -136,3 +136,4 @@ function PageView({ page, user, cardLabel }: { page: AppPage; user: LoginUser; c
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
+
