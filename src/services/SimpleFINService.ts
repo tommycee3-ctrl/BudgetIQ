@@ -31,74 +31,92 @@ export class SimpleFINService {
     }
 
     async claimSetupToken(setupToken: string): Promise<string> {
+
         const claimUrl = this.decodeSetupToken(setupToken);
 
         const response = await fetch(claimUrl, {
-            method: "POST",
-            headers: {
-                "Content-Length": "0"
-            }
+            method: "POST"
         });
 
         if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`SimpleFIN claim failed: ${response.status} ${text}`);
+            throw new Error(await response.text());
         }
 
-        const accessUrl = (await response.text()).trim();
+        return (await response.text()).trim();
 
-        if (!accessUrl.startsWith("http")) {
-            throw new Error("SimpleFIN did not return a valid access URL.");
-        }
-
-        return accessUrl;
     }
 
     async fetchAccounts(accessUrl: string): Promise<SimpleFINAccount[]> {
-        const url = this.buildAccountsUrl(accessUrl);
 
-        const response = await fetch(url);
+        const response = await this.authorizedFetch(
+            this.buildAccountsUrl(accessUrl)
+        );
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`SimpleFIN accounts failed: ${response.status} ${text}`);
-        }
-
-        const data = await response.json() as { accounts?: SimpleFINAccount[] };
+        const data = await response.json() as {
+            accounts?: SimpleFINAccount[];
+        };
 
         return data.accounts ?? [];
+
     }
 
     async fetchTransactions(
         accessUrl: string,
         startDateUnix?: number
     ): Promise<SimpleFINAccount[]> {
+
         let url = this.buildAccountsUrl(accessUrl);
 
         if (startDateUnix) {
             url += `?start-date=${startDateUnix}`;
         }
 
-        const response = await fetch(url);
+        const response = await this.authorizedFetch(url);
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`SimpleFIN transactions failed: ${response.status} ${text}`);
-        }
-
-        const data = await response.json() as { accounts?: SimpleFINAccount[] };
+        const data = await response.json() as {
+            accounts?: SimpleFINAccount[];
+        };
 
         return data.accounts ?? [];
+
+    }
+
+    private async authorizedFetch(rawUrl: string): Promise<Response> {
+
+        const url = new URL(rawUrl);
+
+        const username = decodeURIComponent(url.username);
+        const password = decodeURIComponent(url.password);
+
+        url.username = "";
+        url.password = "";
+
+        const auth = Buffer
+            .from(`${username}:${password}`)
+            .toString("base64");
+
+        const response = await fetch(url.toString(), {
+            headers: {
+                Authorization: `Basic ${auth}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        return response;
+
     }
 
     private buildAccountsUrl(accessUrl: string): string {
+
         const clean = accessUrl.replace(/\/$/, "");
 
-        if (clean.endsWith("/accounts")) {
-            return clean;
-        }
+        return clean.endsWith("/accounts")
+            ? clean
+            : `${clean}/accounts`;
 
-        return `${clean}/accounts`;
     }
 
 }
