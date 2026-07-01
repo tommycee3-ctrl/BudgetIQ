@@ -2,157 +2,137 @@ import { db } from "../database/db";
 import { encryption } from "./EncryptionService";
 import { simplefin, type SimpleFINAccount } from "./SimpleFINService";
 
-export type SavedBankAccount = {
-    id: number;
-    connectionId: number;
-    externalId: string;
-    accountName: string;
-    accountType: string | null;
-    enabled: boolean;
-};
-
 export class BankConnectionService {
+  async connectBank(userId: number, setupToken: string, displayName = "Connected Bank") {
+    const accessUrl = await simplefin.claimSetupToken(setupToken);
+    const accounts = await simplefin.fetchAccounts(accessUrl);
+    const encryptedAccessUrl = encryption.encrypt(accessUrl);
 
-    async connectBank(
-        userId: number,
-        setupToken: string,
-        displayName = "Connected Bank"
-    ) {
+    const result = db.prepare(`
+      INSERT INTO bank_connections (user_id, provider, display_name, encrypted_access_url, enabled)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(userId, "simplefin", displayName, encryptedAccessUrl, 1);
 
-        const accessUrl = await simplefin.claimSetupToken(setupToken);
+    const connectionId = Number(result.lastInsertRowid);
+    this.saveAccounts(connectionId, accounts);
 
-        const accounts = await simplefin.fetchAccounts(accessUrl);
+    return { connectionId, provider: "simplefin", displayName, accounts: this.getAccounts(connectionId) };
+  }
 
-        const encryptedAccessUrl = encryption.encrypt(accessUrl);
+  getConnections(userId: number) {
+    return db.prepare(`
+      SELECT id, provider, display_name AS displayName, last_sync AS lastSync, enabled, created_at AS createdAt
+      FROM bank_connections
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `).all(userId);
+  }
 
-        const result = db.prepare(`
-            INSERT INTO bank_connections (
-                user_id,
-                provider,
-                display_name,
-                encrypted_access_url,
-                enabled
-            )
-            VALUES (?, ?, ?, ?, ?)
-        `).run(
-            userId,
-            "simplefin",
-            displayName,
-            encryptedAccessUrl,
-            1
-        );
+  getAccounts(connectionId: number) {
+    return db.prepare(`
+      SELECT id, connection_id AS connectionId, external_id AS externalId,
+             account_name AS accountName, account_type AS accountType, enabled
+      FROM bank_accounts
+      WHERE connection_id = ?
+      ORDER BY account_name
+    `).all(connectionId).map((row: any) => ({ ...row, enabled: Boolean(row.enabled) }));
+  }
 
-        const connectionId = Number(result.lastInsertRowid);
+  async syncTransactions(connectionId: number, daysBack = 90) {
+    const connection = db.prepare(`
+      SELECT id, user_id, encrypted_access_url
+      FROM bank_connections
+      WHERE id = ? AND enabled = 1
+    `).get(connectionId) as any;
 
-        this.saveAccounts(connectionId, accounts);
+    if (!connection) throw new Error("Bank connection not found.");
 
-        return {
-            connectionId,
-            provider: "simplefin",
-            displayName,
-            accounts: this.getAccounts(connectionId)
-        };
+    const accessUrl = encryption.decrypt(connection.encrypted_access_url);
+    const startDateUnix = Math.floor((Date.now() - daysBack * 24 * 60 * 60 * 1000) / 1000);
 
-    }
+    const accounts = await simplefin.fetchTransactions(accessUrl, startDateUnix);
 
-    getConnections(userId: number) {
+    let inserted = 0;
+    let skipped = 0;
 
-        return db.prepare(`
-            SELECT
-                id,
-                provider,
-                display_name AS displayName,
-                last_sync AS lastSync,
-                enabled,
-                created_at AS createdAt
-            FROM bank_connections
-            WHERE user_id = ?
-            ORDER BY created_at DESC
-        `).all(userId);
+    const insertTransaction = db.prepare(`
+      INSERT OR IGNORE INTO transactions (
+        user_id, account_id, external_id, merchant, description, amount,
+        category, transaction_date, pending, reviewed
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
 
-    }
+    const getAccount = db.prepare(`
+      SELECT id FROM bank_accounts
+      WHERE connection_id = ? AND external_id = ?
+    `);
 
-    getAccounts(connectionId: number): SavedBankAccount[] {
+    const tx = db.transaction(() => {
+      for (const account of accounts) {
+        const localAccount = getAccount.get(connectionId, account.id) as any;
+        if (!localAccount) continue;
 
-        return db.prepare(`
-            SELECT
-                id,
-                connection_id AS connectionId,
-                external_id AS externalId,
-                account_name AS accountName,
-                account_type AS accountType,
-                enabled
-            FROM bank_accounts
-            WHERE connection_id = ?
-            ORDER BY account_name
-        `).all(connectionId).map((row: any) => ({
-            ...row,
-            enabled: Boolean(row.enabled)
-        }));
+        for (const item of account.transactions ?? []) {
+          const postedDate = item.posted
+            ? new Date(item.posted * 1000).toISOString().slice(0, 10)
+            : new Date().toISOString().slice(0, 10);
 
-    }
+          const result = insertTransaction.run(
+            connection.user_id,
+            localAccount.id,
+            item.id,
+            item.payee ?? item.description ?? "Unknown",
+            item.description ?? item.payee ?? "Unknown",
+            Number(item.amount),
+            "Uncategorized",
+            postedDate,
+            item.pending ? 1 : 0,
+            0
+          );
 
-    getDecryptedAccessUrl(connectionId: number): string {
-
-        const row = db.prepare(`
-            SELECT encrypted_access_url
-            FROM bank_connections
-            WHERE id = ?
-              AND enabled = 1
-        `).get(connectionId) as any;
-
-        if (!row) {
-            throw new Error("Connection not found.");
+          if (result.changes > 0) inserted++;
+          else skipped++;
         }
+      }
 
-        return encryption.decrypt(row.encrypted_access_url);
+      db.prepare(`
+        UPDATE bank_connections
+        SET last_sync = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(connectionId);
+    });
 
-    }
+    tx();
 
-    private saveAccounts(
-        connectionId: number,
-        accounts: SimpleFINAccount[]
-    ) {
+    return { inserted, skipped };
+  }
 
-        const insert = db.prepare(`
-            INSERT OR REPLACE INTO bank_accounts (
-                connection_id,
-                external_id,
-                account_name,
-                account_type,
-                enabled
-            )
-            VALUES (?, ?, ?, ?, COALESCE(
-                (
-                    SELECT enabled
-                    FROM bank_accounts
-                    WHERE external_id = ?
-                ),
-                1
-            ))
-        `);
+  private saveAccounts(connectionId: number, accounts: SimpleFINAccount[]) {
+    const insert = db.prepare(`
+      INSERT OR REPLACE INTO bank_accounts (
+        connection_id, external_id, account_name, account_type, enabled
+      )
+      VALUES (?, ?, ?, ?, COALESCE(
+        (SELECT enabled FROM bank_accounts WHERE external_id = ?),
+        1
+      ))
+    `);
 
-        const transaction = db.transaction(() => {
+    const tx = db.transaction(() => {
+      for (const account of accounts) {
+        insert.run(
+          connectionId,
+          account.id,
+          account.name ?? "Unnamed Account",
+          account.org?.name ?? null,
+          account.id
+        );
+      }
+    });
 
-            for (const account of accounts) {
-
-                insert.run(
-                    connectionId,
-                    account.id,
-                    account.name ?? "Unnamed Account",
-                    account.org?.name ?? null,
-                    account.id
-                );
-
-            }
-
-        });
-
-        transaction();
-
-    }
-
+    tx();
+  }
 }
 
-export const bankConnectionService =
-    new BankConnectionService();
+export const bankConnectionService = new BankConnectionService();
