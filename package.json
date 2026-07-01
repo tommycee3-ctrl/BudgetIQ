@@ -1,7 +1,7 @@
 {
-  "name": "budgetiq",
+  "name": "casellaiq",
   "version": "1.0.0",
-  "description": "BudgetIQ Personal Finance Server",
+  "description": "CasellaIQ Personal Finance Server",
   "main": "server.ts",
   "scripts": {
     "dev": "tsx watch server.ts",

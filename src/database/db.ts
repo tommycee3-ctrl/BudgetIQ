@@ -16,6 +16,28 @@ CREATE TABLE IF NOT EXISTS users (
   has_amazon_flex INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS bank_connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    provider TEXT NOT NULL,
+    friendly_name TEXT NOT NULL,
+    encrypted_access_url TEXT NOT NULL,
+    last_sync TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS bank_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    connection_id INTEGER NOT NULL,
+    external_id TEXT NOT NULL,
+    account_name TEXT NOT NULL,
+    account_type TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(connection_id) REFERENCES bank_connections(id)
+);
 
 CREATE TABLE IF NOT EXISTS budgets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,13 +68,18 @@ CREATE TABLE IF NOT EXISTS bills (
 CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
-  merchant TEXT NOT NULL,
+  account_id INTEGER,
+  external_id TEXT UNIQUE,
+  merchant TEXT,
+  description TEXT NOT NULL,
   amount REAL NOT NULL,
-  category TEXT NOT NULL DEFAULT 'Misc',
+  category TEXT NOT NULL DEFAULT 'Uncategorized',
   transaction_date TEXT NOT NULL,
+  pending INTEGER NOT NULL DEFAULT 0,
   reviewed INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(user_id) REFERENCES users(id)
+  FOREIGN KEY(user_id) REFERENCES users(id),
+  FOREIGN KEY(account_id) REFERENCES bank_accounts(id)
 );
 
 CREATE TABLE IF NOT EXISTS merchant_rules (
