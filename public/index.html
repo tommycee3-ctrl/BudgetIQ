@@ -1,14 +1,43 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>BudgetIQ Login</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BudgetIQ</title>
+  <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <div class="card">
-    <h1>BudgetIQ</h1>
-    <h2>Login page coming next</h2>
-    <p>Server and public files are working.</p>
+  <div class="app tommy-theme" id="app">
+    <aside class="sidebar">
+      <h1>Budget<span>IQ</span></h1>
+
+      <button id="tommyBtn" class="user-btn active" onclick="switchUser('tommy')">Tommy</button>
+      <button id="ashleyBtn" class="user-btn" onclick="switchUser('ashley')">Ashley</button>
+
+      <nav>
+        <a data-page="dashboard">Dashboard</a>
+        <a data-page="budget">Budget</a>
+        <a data-page="bills">Bills</a>
+        <a data-page="card">Spending Card</a>
+        <a data-page="transactions">Transactions</a>
+        <a data-page="flex" id="flexLink">Amazon Flex</a>
+        <a data-page="settings">Settings</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="welcome">Welcome back, Tommy ??</p>
+        </div>
+        <button class="theme-btn" onclick="switchUser(currentUser === 'tommy' ? 'ashley' : 'tommy')">Switch User</button>
+      </header>
+
+      <div id="content"></div>
+    </main>
   </div>
+
+  <script src="/js/app.js"></script>
 </body>
 </html>

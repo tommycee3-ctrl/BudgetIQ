@@ -19,6 +19,7 @@
     "helmet": "^8.2.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
     "@types/node": "^26.0.1",
