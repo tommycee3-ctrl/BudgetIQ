@@ -1,35 +1,82 @@
-﻿import { USERS, type UserKey } from "../../types/app";
+﻿import { useState } from "react";
 import "./Login.css";
 
+type LoginUser = {
+  id: number;
+  name: string;
+  username: string;
+  theme: "tommy" | "ashley";
+  hasAmazonFlex: boolean;
+};
+
 type LoginProps = {
-  onLogin: (user: UserKey) => void;
+  onLogin: (user: LoginUser, remember: boolean) => void;
 };
 
 export function Login({ onLogin }: LoginProps) {
+  const [username, setUsername] = useState("tommy");
+  const [password, setPassword] = useState("tommy123");
+  const [remember, setRemember] = useState(true);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submitLogin(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        setError(data.message || "Login failed.");
+        return;
+      }
+
+      onLogin(data.user, remember);
+    } catch {
+      setError("Could not reach the CasellaIQ server.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="login-screen">
-      <div className="login-card">
-        <h1>Budget<span>IQ</span></h1>
-        <p>Choose your profile to continue.</p>
+      <form className="login-card" onSubmit={submitLogin}>
+        <h1>Casella<span>IQ</span></h1>
+        <p>Sign in to your personal finance dashboard.</p>
 
-        <div className="login-users">
-          <button onClick={() => onLogin("tommy")}>
-            <strong>{USERS.tommy.name}</strong>
-            <span>Dark blue dashboard</span>
-          </button>
+        <label>Username</label>
+        <input value={username} onChange={(e) => setUsername(e.target.value)} />
 
-          <button className="ashley-login" onClick={() => onLogin("ashley")}>
-            <strong>{USERS.ashley.name} 🦄</strong>
-            <span>Pink and purple dashboard</span>
-          </button>
-        </div>
+        <label>Password</label>
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+
+        {error && <div className="login-error">{error}</div>}
 
         <label className="remember">
-          <input type="checkbox" defaultChecked />
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           Remember this device
         </label>
-      </div>
+
+        <button className="login-submit" type="submit" disabled={loading}>
+          {loading ? "Signing in..." : "Login"}
+        </button>
+
+        <div className="login-hint">
+          Tommy: tommy / tommy123<br />
+          Ashley: ashley / ashley123
+        </div>
+      </form>
     </div>
   );
 }
-
