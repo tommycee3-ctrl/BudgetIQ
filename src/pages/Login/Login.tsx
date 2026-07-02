@@ -1,80 +1,97 @@
 ﻿import { useState } from "react";
 import "./Login.css";
 
-type LoginUser = {
-  id: number;
-  name: string;
-  username: string;
-  theme: "tommy" | "ashley";
-  hasAmazonFlex: boolean;
-};
-
 type LoginProps = {
-  onLogin: (user: LoginUser, remember: boolean) => void;
+  onLogin: (user: any, remember: boolean) => void;
 };
 
 export function Login({ onLogin }: LoginProps) {
-  const [username, setUsername] = useState("tommy");
-  const [password, setPassword] = useState("tommy123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  async function submitLogin(event: React.FormEvent) {
-    event.preventDefault();
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError("");
-    setLoading(true);
 
-    try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ username, password })
-      });
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ username, password })
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok || !data.ok) {
-        setError(data.message || "Login failed.");
-        return;
-      }
-
-      onLogin(data.user, remember);
-    } catch {
-      setError("Could not reach the CasellaIQ server.");
-    } finally {
-      setLoading(false);
+    if (!data.ok) {
+      setError(data.message || "Login failed.");
+      return;
     }
+
+    onLogin(data.user, remember);
   }
 
   return (
-    <div className="login-screen">
-      <form className="login-card" onSubmit={submitLogin}>
-        <h1>Casella<span>IQ</span></h1>
-        <p>Sign in to your personal finance dashboard.</p>
+    <div className="login-page">
+      <form className="login-card" onSubmit={handleSubmit}>
+        <div className="login-brand">
+          Casella<span>IQ</span>
+        </div>
 
-        <label>Username</label>
-        <input value={username} onChange={(e) => setUsername(e.target.value)} />
+        <p className="login-subtitle">
+          Private financial command center
+        </p>
+
+        <label>Username or Email</label>
+        <input
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          autoComplete="username"
+        />
 
         <label>Password</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
 
-        {error && <div className="login-error">{error}</div>}
-
-        <label className="remember">
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        <label className="remember-row">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={e => setRemember(e.target.checked)}
+          />
           Remember this device
         </label>
 
-        <button className="login-submit" type="submit" disabled={loading}>
-          {loading ? "Signing in..." : "Login"}
+        {error && <div className="login-error">{error}</div>}
+
+        <button type="submit" className="login-button">
+          Sign In
         </button>
 
-        <div className="login-hint">
-          Tommy: tommy / tommy123<br />
-          Ashley: ashley / ashley123
+        <div className="login-links">
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => alert("Password reset is coming soon.")}
+          >
+            Forgot Password?
+          </button>
+
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => alert("Account requests are currently handled by the administrator.")}
+          >
+            Request Access
+          </button>
+
+          <small>Private beta · Authorized users only</small>
         </div>
       </form>
     </div>
