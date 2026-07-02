@@ -3,6 +3,14 @@ import { db } from "../../database/db";
 
 const router = express.Router();
 
+function getPayPeriod(userId: number) {
+  return db.prepare(`
+    SELECT last_payday AS lastPayday, next_payday AS nextPayday
+    FROM paycheck_settings
+    WHERE user_id = ?
+  `).get(userId) as any;
+}
+
 router.get("/:userId", (req, res) => {
   try {
     const userId = Number(req.params.userId);
@@ -32,7 +40,6 @@ router.get("/:userId", (req, res) => {
 
     res.json({ ok: true, transactions });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ ok: false, message: error.message });
   }
 });
@@ -48,11 +55,15 @@ router.put("/:id/categorize", (req, res) => {
       WHERE id = ?
     `).get(id) as any;
 
-    if (!tx) {
-      return res.status(404).json({ ok: false, message: "Transaction not found." });
-    }
+    if (!tx) return res.status(404).json({ ok: false, message: "Transaction not found." });
 
     const matchText = String(tx.merchant || tx.description || "").trim();
+
+    db.prepare(`
+      UPDATE transactions
+      SET category = ?, reviewed = 1
+      WHERE id = ?
+    `).run(category, id);
 
     if (applyToMerchant && matchText) {
       db.prepare(`
@@ -60,30 +71,11 @@ router.put("/:id/categorize", (req, res) => {
         VALUES (?, ?, ?)
         ON CONFLICT(user_id, match_text) DO UPDATE SET category = excluded.category
       `).run(tx.user_id, matchText, category);
-
-      db.prepare(`
-        UPDATE transactions
-        SET category = ?, reviewed = 1
-        WHERE user_id = ?
-          AND (
-            LOWER(COALESCE(merchant, '')) LIKE ?
-            OR LOWER(COALESCE(description, '')) LIKE ?
-          )
-      `).run(
-        category,
-        tx.user_id,
-        "%" + matchText.toLowerCase() + "%",
-        "%" + matchText.toLowerCase() + "%"
-      );
-    } else {
-      db.prepare(`
-        UPDATE transactions
-        SET category = ?, reviewed = 1
-        WHERE id = ?
-      `).run(category, id);
     }
 
     if (billId) {
+      const period = getPayPeriod(tx.user_id);
+
       db.prepare(`
         UPDATE bills
         SET paid = 1,
@@ -91,11 +83,27 @@ router.put("/:id/categorize", (req, res) => {
         WHERE id = ?
           AND user_id = ?
       `).run(id, Number(billId), tx.user_id);
+
+      db.prepare(`
+        INSERT INTO bill_payments (
+          user_id, bill_id, transaction_id, pay_period_start, pay_period_end
+        )
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(bill_id, pay_period_start, pay_period_end)
+        DO UPDATE SET transaction_id = excluded.transaction_id
+      `).run(tx.user_id, Number(billId), id, period.lastPayday, period.nextPayday);
+
+      if (applyToMerchant && matchText) {
+        db.prepare(`
+          INSERT INTO bill_match_rules (user_id, bill_id, match_text)
+          VALUES (?, ?, ?)
+          ON CONFLICT(user_id, bill_id, match_text) DO NOTHING
+        `).run(tx.user_id, Number(billId), matchText);
+      }
     }
 
     res.json({ ok: true });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ ok: false, message: error.message });
   }
 });
