@@ -37,13 +37,13 @@ router.get("/:userId", (req, res) => {
   }
 });
 
-router.put("/:id/category", (req, res) => {
+router.put("/:id/categorize", (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { category, applyToMerchant } = req.body;
+    const { category, applyToMerchant, billId } = req.body;
 
     const tx = db.prepare(`
-      SELECT user_id, merchant, description
+      SELECT id, user_id, merchant, description
       FROM transactions
       WHERE id = ?
     `).get(id) as any;
@@ -81,6 +81,16 @@ router.put("/:id/category", (req, res) => {
         SET category = ?, reviewed = 1
         WHERE id = ?
       `).run(category, id);
+    }
+
+    if (billId) {
+      db.prepare(`
+        UPDATE bills
+        SET paid = 1,
+            paid_transaction_id = ?
+        WHERE id = ?
+          AND user_id = ?
+      `).run(id, Number(billId), tx.user_id);
     }
 
     res.json({ ok: true });

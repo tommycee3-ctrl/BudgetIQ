@@ -18,6 +18,14 @@ type Transaction = {
   accountName: string | null;
 };
 
+type BillOption = {
+  id: number;
+  name: string;
+  amount: number;
+  dueDay: number;
+  paid: number;
+};
+
 type Bill = {
   name: string;
   amount: number;
@@ -34,12 +42,30 @@ type DashboardData = {
 
 type TileKey = "checking" | "groceries" | "bills" | "spendingCard" | "misc" | "monthly";
 
-const categories = ["Groceries", "Food", "Entertainment", "Bills", "Gas", "Shopping", "Misc"];
+const categories = [
+  "Uncategorized",
+  "Groceries",
+  "Food",
+  "Entertainment",
+  "Bills",
+  "Gas",
+  "Shopping",
+  "Household",
+  "Medical",
+  "Amazon",
+  "Transfer",
+  "Income",
+  "Misc"
+];
 
 export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [bills, setBills] = useState<BillOption[]>([]);
   const [activeTile, setActiveTile] = useState<TileKey>("checking");
+  const [selectedCategory, setSelectedCategory] = useState<Record<number, string>>({});
+  const [alwaysMerchant, setAlwaysMerchant] = useState<Record<number, boolean>>({});
+  const [selectedBill, setSelectedBill] = useState<Record<number, string>>({});
 
   const groceriesBudget = 350;
 
@@ -51,6 +77,10 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
     const txRes = await fetch("/api/transactions/" + userId + "?limit=500");
     const txJson = await txRes.json();
     if (txJson.ok) setTransactions(txJson.transactions);
+
+    const billsRes = await fetch("/api/bills/" + userId);
+    const billsJson = await billsRes.json();
+    if (billsJson.ok) setBills(billsJson.bills);
   }
 
   useEffect(() => {
@@ -63,11 +93,18 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
     return Number(value || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
   }
 
-  async function categorize(tx: Transaction, category: string, applyToMerchant: boolean) {
-    await fetch("/api/transactions/" + tx.id + "/category", {
+  async function saveTransaction(tx: Transaction) {
+    const category = selectedCategory[tx.id] || tx.category || "Uncategorized";
+    const billId = selectedBill[tx.id] || "";
+
+    await fetch("/api/transactions/" + tx.id + "/categorize", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category, applyToMerchant })
+      body: JSON.stringify({
+        category,
+        applyToMerchant: Boolean(alwaysMerchant[tx.id]),
+        billId: billId ? Number(billId) : null
+      })
     });
 
     await load();
@@ -93,6 +130,8 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
     activeTile === "spendingCard" ? spendingCardTransactions :
     activeTile === "misc" ? miscTransactions :
     periodTransactions;
+
+  const unpaidBills = bills.filter(b => !b.paid);
 
   return (
     <div className="dashboard-page">
@@ -189,24 +228,42 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
           <div className="detail-list">
             {selectedTransactions.slice(0, 60).map(tx => (
               <div className="detail-row transaction-row" key={tx.id}>
-                <div>
+                <div className="transaction-main">
                   <strong>{tx.merchant || tx.description}</strong>
-                  <p>{tx.transactionDate} · {tx.accountName || "Account"} · {tx.category}</p>
+                  <p>{tx.transactionDate} · {tx.accountName || "Account"} · Current: {tx.category}</p>
 
-                  <div className="category-buttons">
-                    {categories.map(category => (
-                      <button key={category} onClick={() => categorize(tx, category, false)}>
-                        {category}
-                      </button>
-                    ))}
-                  </div>
+                  <div className="transaction-controls">
+                    <select
+                      value={selectedCategory[tx.id] || tx.category || "Uncategorized"}
+                      onChange={e => setSelectedCategory({ ...selectedCategory, [tx.id]: e.target.value })}
+                    >
+                      {categories.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
 
-                  <div className="category-buttons always">
-                    {categories.map(category => (
-                      <button key={category} onClick={() => categorize(tx, category, true)}>
-                        Always {category}
-                      </button>
-                    ))}
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(alwaysMerchant[tx.id])}
+                        onChange={e => setAlwaysMerchant({ ...alwaysMerchant, [tx.id]: e.target.checked })}
+                      />
+                      Always this merchant
+                    </label>
+
+                    <select
+                      value={selectedBill[tx.id] || ""}
+                      onChange={e => setSelectedBill({ ...selectedBill, [tx.id]: e.target.value })}
+                    >
+                      <option value="">Not a bill payment</option>
+                      {unpaidBills.map(bill => (
+                        <option key={bill.id} value={bill.id}>
+                          Paid bill: {bill.name} - {money(bill.amount)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button onClick={() => saveTransaction(tx)}>Save</button>
                   </div>
                 </div>
 

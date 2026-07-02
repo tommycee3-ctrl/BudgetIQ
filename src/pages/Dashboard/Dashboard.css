@@ -155,3 +155,35 @@
 .transaction-row {
   align-items: flex-start;
 }
+.transaction-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.transaction-controls select {
+  padding: 7px 9px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(0,0,0,.25);
+  color: white;
+}
+
+.transaction-controls label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  opacity: .85;
+}
+
+.transaction-controls button {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: #159dff;
+  color: white;
+  font-weight: 800;
+}
