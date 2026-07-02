@@ -1,29 +1,27 @@
 ﻿import { useEffect, useState } from "react";
 import "./BankConnections.css";
 
-type BankConnection = {
-  id: number;
-  provider: string;
-  displayName?: string;
-  friendlyName?: string;
-  lastSync: string | null;
-  enabled: number;
-};
-
-type UserAccount = {
+type Account = {
   id: number;
   accountName: string;
   currentBalance: number;
   availableBalance: number;
   enabled: boolean;
+};
+
+type ConnectionGroup = {
+  id: number;
   bankName: string;
+  provider: string;
+  lastSync: string | null;
+  accounts: Account[];
 };
 
 export function BankConnections({ userId }: { userId: number }) {
-  const [connections, setConnections] = useState<BankConnection[]>([]);
-  const [accounts, setAccounts] = useState<UserAccount[]>([]);
-  const [friendlyName, setFriendlyName] = useState("First Interstate Bank");
+  const [connections, setConnections] = useState<ConnectionGroup[]>([]);
+  const [friendlyName, setFriendlyName] = useState("Chase");
   const [setupToken, setSetupToken] = useState("");
+  const [selected, setSelected] = useState<Record<number, number[]>>({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,13 +33,21 @@ export function BankConnections({ userId }: { userId: number }) {
   }
 
   async function loadAll() {
-    const statusRes = await fetch("/api/bank/status/" + userId);
-    const statusData = await statusRes.json();
-    if (statusData.ok) setConnections(statusData.connections || []);
+    const res = await fetch("/api/bank/user-accounts/" + userId);
+    const data = await res.json();
 
-    const accountRes = await fetch("/api/bank/user-accounts/" + userId);
-    const accountData = await accountRes.json();
-    if (accountData.ok) setAccounts(accountData.accounts || []);
+    if (data.ok) {
+      setConnections(data.connections || []);
+
+      const nextSelected: Record<number, number[]> = {};
+      for (const connection of data.connections || []) {
+        nextSelected[connection.id] = connection.accounts
+          .filter((account: Account) => account.enabled)
+          .map((account: Account) => account.id);
+      }
+
+      setSelected(nextSelected);
+    }
   }
 
   async function connectBank() {
@@ -63,7 +69,7 @@ export function BankConnections({ userId }: { userId: number }) {
       }
 
       setSetupToken("");
-      setMessage("Bank connected. Choose which accounts to use below.");
+      setMessage("Bank connected. Select the accounts to use, then click Save.");
       await loadAll();
     } catch {
       setMessage("Could not connect to CasellaIQ server.");
@@ -72,14 +78,43 @@ export function BankConnections({ userId }: { userId: number }) {
     }
   }
 
-  async function toggleAccount(account: UserAccount) {
-    await fetch("/api/bank/accounts/" + account.id + "/enabled", {
+  function toggleAccount(connectionId: number, accountId: number) {
+    const current = selected[connectionId] || [];
+
+    const next = current.includes(accountId)
+      ? current.filter(id => id !== accountId)
+      : [...current, accountId];
+
+    setSelected({
+      ...selected,
+      [connectionId]: next
+    });
+  }
+
+  async function saveConnection(connectionId: number) {
+    await fetch("/api/bank/connection-accounts/" + connectionId, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: !account.enabled })
+      body: JSON.stringify({
+        accountIds: selected[connectionId] || []
+      })
     });
 
+    setMessage("Account selection saved.");
     await loadAll();
+  }
+
+  async function syncConnection(connectionId: number) {
+    setMessage("Syncing...");
+    const res = await fetch("/api/bank/sync/" + connectionId, { method: "POST" });
+    const data = await res.json();
+
+    if (data.ok) {
+      setMessage("Sync complete. Added " + data.inserted + " transactions.");
+      await loadAll();
+    } else {
+      setMessage(data.message || "Sync failed.");
+    }
   }
 
   useEffect(() => {
@@ -91,7 +126,7 @@ export function BankConnections({ userId }: { userId: number }) {
       <div className="page-header">
         <div>
           <h2>🏦 Bank Connections</h2>
-          <p>Connect banks and choose which accounts this user can use.</p>
+          <p>Connect banks and choose exactly which accounts this user can use.</p>
         </div>
       </div>
 
@@ -115,41 +150,39 @@ export function BankConnections({ userId }: { userId: number }) {
         {message && <p className="bank-message">{message}</p>}
       </div>
 
-      <div className="bank-card">
-        <h3>Connected Banks</h3>
+      {connections.map(connection => (
+        <div className="bank-card" key={connection.id}>
+          <h3>{connection.bankName}</h3>
+          <p>{connection.provider} · {connection.lastSync || "Never synced"}</p>
 
-        {connections.length === 0 && <p>No banks connected yet.</p>}
+          <h4>Accounts from this connection</h4>
 
-        {connections.map(connection => (
-          <div className="connection-row" key={connection.id}>
-            <div>
-              <strong>{connection.displayName || connection.friendlyName || "Connected Bank"}</strong>
-              <p>{connection.provider} · {connection.lastSync || "Never synced"}</p>
-            </div>
-            <span className="connected">● Connected</span>
+          {connection.accounts.map(account => (
+            <label className="account-row" key={account.id}>
+              <input
+                type="checkbox"
+                checked={(selected[connection.id] || []).includes(account.id)}
+                onChange={() => toggleAccount(connection.id, account.id)}
+              />
+
+              <div>
+                <strong>{account.accountName}</strong>
+                <p>{money(account.currentBalance)}</p>
+              </div>
+            </label>
+          ))}
+
+          <div className="bank-actions">
+            <button className="primary-btn" onClick={() => saveConnection(connection.id)}>
+              Save Account Selection
+            </button>
+
+            <button className="secondary-btn" onClick={() => syncConnection(connection.id)}>
+              Sync Now
+            </button>
           </div>
-        ))}
-      </div>
-
-      <div className="bank-card">
-        <h3>Account Selection</h3>
-        <p>Only enabled accounts are used for this user's dashboard, transactions, and budgets.</p>
-
-        {accounts.map(account => (
-          <div className="account-row" key={account.id}>
-            <input
-              type="checkbox"
-              checked={account.enabled}
-              onChange={() => toggleAccount(account)}
-            />
-
-            <div>
-              <strong>{account.accountName}</strong>
-              <p>{account.bankName} · {money(account.currentBalance)}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }

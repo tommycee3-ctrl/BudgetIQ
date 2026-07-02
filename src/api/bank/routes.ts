@@ -10,7 +10,6 @@ router.get("/status/:userId", (req, res) => {
     const connections = bankConnectionService.getConnections(userId);
     res.json({ ok: true, connections });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ ok: false, message: error.message });
   }
 });
@@ -19,44 +18,89 @@ router.get("/user-accounts/:userId", (req, res) => {
   try {
     const userId = Number(req.params.userId);
 
-    const accounts = db.prepare(`
+    const rows = db.prepare(`
       SELECT
-        ba.id,
+        bc.id AS connectionId,
+        bc.display_name AS bankName,
+        bc.provider,
+        bc.last_sync AS lastSync,
+        ba.id AS accountId,
         ba.account_name AS accountName,
         ba.current_balance AS currentBalance,
         ba.available_balance AS availableBalance,
-        ba.enabled,
-        bc.display_name AS bankName
-      FROM bank_accounts ba
-      JOIN bank_connections bc ON bc.id = ba.connection_id
+        ba.enabled
+      FROM bank_connections bc
+      LEFT JOIN bank_accounts ba ON ba.connection_id = bc.id
       WHERE bc.user_id = ?
-      ORDER BY bc.display_name, ba.account_name
-    `).all(userId).map((row: any) => ({
-      ...row,
-      enabled: Boolean(row.enabled)
-    }));
+        AND bc.enabled = 1
+      ORDER BY bc.created_at DESC, ba.account_name
+    `).all(userId) as any[];
 
-    res.json({ ok: true, accounts });
+    const connections = rows.reduce((acc: any[], row: any) => {
+      let connection = acc.find(item => item.id === row.connectionId);
+
+      if (!connection) {
+        connection = {
+          id: row.connectionId,
+          bankName: row.bankName,
+          provider: row.provider,
+          lastSync: row.lastSync,
+          accounts: []
+        };
+        acc.push(connection);
+      }
+
+      if (row.accountId) {
+        connection.accounts.push({
+          id: row.accountId,
+          accountName: row.accountName,
+          currentBalance: row.currentBalance,
+          availableBalance: row.availableBalance,
+          enabled: Boolean(row.enabled)
+        });
+      }
+
+      return acc;
+    }, []);
+
+    res.json({ ok: true, connections });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ ok: false, message: error.message });
   }
 });
 
-router.put("/accounts/:accountId/enabled", (req, res) => {
+router.put("/connection-accounts/:connectionId", (req, res) => {
   try {
-    const accountId = Number(req.params.accountId);
-    const { enabled } = req.body;
+    const connectionId = Number(req.params.connectionId);
+    const { accountIds } = req.body;
 
-    db.prepare(`
-      UPDATE bank_accounts
-      SET enabled = ?
-      WHERE id = ?
-    `).run(enabled ? 1 : 0, accountId);
+    if (!Array.isArray(accountIds)) {
+      return res.status(400).json({ ok: false, message: "accountIds must be an array." });
+    }
+
+    const tx = db.transaction(() => {
+      db.prepare(`
+        UPDATE bank_accounts
+        SET enabled = 0
+        WHERE connection_id = ?
+      `).run(connectionId);
+
+      const enable = db.prepare(`
+        UPDATE bank_accounts
+        SET enabled = 1
+        WHERE connection_id = ?
+          AND id = ?
+      `);
+
+      for (const accountId of accountIds) {
+        enable.run(connectionId, Number(accountId));
+      }
+    });
+
+    tx();
 
     res.json({ ok: true });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ ok: false, message: error.message });
   }
 });
@@ -72,18 +116,6 @@ router.post("/connect", async (req, res) => {
     const result = await bankConnectionService.connectBank(Number(userId), setupToken, friendlyName);
     res.json({ ok: true, ...result });
   } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ ok: false, message: error.message });
-  }
-});
-
-router.get("/accounts/:connectionId", (req, res) => {
-  try {
-    const connectionId = Number(req.params.connectionId);
-    const accounts = bankConnectionService.getAccounts(connectionId);
-    res.json({ ok: true, accounts });
-  } catch (error: any) {
-    console.error(error);
     res.status(500).json({ ok: false, message: error.message });
   }
 });
@@ -94,7 +126,6 @@ router.post("/sync/:connectionId", async (req, res) => {
     const result = await bankConnectionService.syncTransactions(connectionId);
     res.json({ ok: true, ...result });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ ok: false, message: error.message });
   }
 });
