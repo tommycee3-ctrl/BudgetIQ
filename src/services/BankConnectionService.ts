@@ -134,7 +134,7 @@ export class BankConnectionService {
         last_seen_at,
         enabled
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 0)
     `);
 
     const update = db.prepare(`
@@ -181,3 +181,4 @@ export class BankConnectionService {
 }
 
 export const bankConnectionService = new BankConnectionService();
+
