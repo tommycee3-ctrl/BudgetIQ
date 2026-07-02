@@ -31,7 +31,11 @@ export class BankConnectionService {
   getAccounts(connectionId: number) {
     return db.prepare(`
       SELECT id, connection_id AS connectionId, external_id AS externalId,
-             account_name AS accountName, account_type AS accountType, enabled
+             account_name AS accountName, account_type AS accountType,
+             current_balance AS currentBalance,
+             available_balance AS availableBalance,
+             currency,
+             enabled
       FROM bank_accounts
       WHERE connection_id = ?
       ORDER BY account_name
@@ -51,6 +55,8 @@ export class BankConnectionService {
     const startDateUnix = Math.floor((Date.now() - daysBack * 24 * 60 * 60 * 1000) / 1000);
 
     const accounts = await simplefin.fetchTransactions(accessUrl, startDateUnix);
+
+    this.saveAccounts(connectionId, accounts);
 
     let inserted = 0;
     let skipped = 0;
@@ -111,9 +117,17 @@ export class BankConnectionService {
   private saveAccounts(connectionId: number, accounts: SimpleFINAccount[]) {
     const insert = db.prepare(`
       INSERT OR REPLACE INTO bank_accounts (
-        connection_id, external_id, account_name, account_type, enabled
+        connection_id,
+        external_id,
+        account_name,
+        account_type,
+        current_balance,
+        available_balance,
+        currency,
+        last_seen_at,
+        enabled
       )
-      VALUES (?, ?, ?, ?, COALESCE(
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, COALESCE(
         (SELECT enabled FROM bank_accounts WHERE external_id = ?),
         1
       ))
@@ -126,6 +140,9 @@ export class BankConnectionService {
           account.id,
           account.name ?? "Unnamed Account",
           account.org?.name ?? null,
+          Number(account.balance ?? 0),
+          Number(account.available_balance ?? account.balance ?? 0),
+          account.currency ?? "USD",
           account.id
         );
       }

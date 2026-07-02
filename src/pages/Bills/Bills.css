@@ -1,0 +1,70 @@
+@'
+.bills-page {
+  display: grid;
+  gap: 20px;
+}
+
+.bill-form {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.bill-form input {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(0,0,0,.25);
+  color: white;
+}
+
+.bill-form button,
+.bill-actions button {
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #159dff;
+  color: white;
+  font-weight: 800;
+}
+
+.split-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bill-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.bill-row p {
+  margin: 6px 0 0;
+  opacity: .7;
+}
+
+.bill-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .bill-form {
+    grid-template-columns: 1fr;
+  }
+
+  .bill-row {
+    display: block;
+  }
+
+  .bill-actions {
+    margin-top: 12px;
+  }
+}
+'@ | Set-Content src\pages\Bills\Bills.css -Encoding UTF8

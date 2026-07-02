@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { Login } from "./pages/Login/Login";
 import { Dashboard } from "./pages/Dashboard/Dashboard";
 import { BankConnections } from "./pages/BankConnections/BankConnections";
+import { Transactions } from "./pages/Transactions/Transactions";
+import { Bills } from "./pages/Bills/Bills";
 import type { AppPage } from "./types/app";
 import "./styles.css";
 
@@ -78,7 +80,7 @@ function App() {
         <header className="topbar">
           <div>
             <h1>{page === "card" ? cardLabel : page[0].toUpperCase() + page.slice(1)}</h1>
-            <p>Welcome back, {user.name} {isAshley ? "✨🦄" : "👋"} · v0.6.4 Alpha</p>
+            <p>Welcome back, {user.name} {isAshley ? "✨🦄" : "👋"} · v0.8.2 Alpha</p>
           </div>
           <button className="switch-btn" onClick={logout}>Logout</button>
         </header>
@@ -86,26 +88,48 @@ function App() {
         <section className="content">
           {page === "dashboard" && (
             <Dashboard
+              userId={user.id}
               userName={user.name}
               hasAmazonFlex={user.hasAmazonFlex}
               cardLabel={cardLabel}
             />
           )}
 
+          {page === "bills" && <Bills userId={user.id} />}
+
           {page === "bank" && <BankConnections userId={user.id} />}
 
-          {page !== "dashboard" && page !== "bank" && (
-            <PageView page={page} user={user} cardLabel={cardLabel} />
-          )}
+          {page === "transactions" && <Transactions userId={user.id} />}
+
+          {page !== "dashboard" &&
+            page !== "bills" &&
+            page !== "bank" &&
+            page !== "transactions" && (
+              <PageView page={page} user={user} cardLabel={cardLabel} />
+            )}
         </section>
       </main>
     </div>
   );
 }
 
-function PageView({ page, user, cardLabel }: { page: AppPage; user: LoginUser; cardLabel: string }) {
+function PageView({
+  page,
+  user,
+  cardLabel
+}: {
+  page: AppPage;
+  user: LoginUser;
+  cardLabel: string;
+}) {
   const title = page === "card" ? cardLabel : page[0].toUpperCase() + page.slice(1);
-  return <div className="panel full"><h2>{title}</h2><p>This section is ready for {user.name}'s database data.</p></div>;
+
+  return (
+    <div className="panel full">
+      <h2>{title}</h2>
+      <p>This section is ready for {user.name}'s database data.</p>
+    </div>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
