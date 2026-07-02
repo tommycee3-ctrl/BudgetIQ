@@ -11,8 +11,25 @@ function isDueInPeriod(dueDay: number, start: Date, end: Date) {
   const year = end.getFullYear();
   const month = end.getMonth();
   const dueDate = new Date(year, month, dueDay);
-
   return dueDate > start && dueDate <= end;
+}
+
+function isRealSpending(text: string) {
+  const lower = text.toLowerCase();
+
+  const excluded = [
+    "payroll",
+    "online transfer",
+    "transfer",
+    "payment",
+    "pymt",
+    "deposit",
+    "savings",
+    "withdrawal",
+    "paypal purchase walmart com"
+  ];
+
+  return !excluded.some(word => lower.includes(word));
 }
 
 router.get("/:userId", (req, res) => {
@@ -42,33 +59,16 @@ router.get("/:userId", (req, res) => {
     const checkingBalance = accounts.reduce((sum, a) => {
       const name = String(a.account_name || "").toLowerCase();
       const balance = Number(a.current_balance || 0);
-
       if (balance <= 0) return sum;
-
-      if (
-        name.includes("checking") ||
-        name.includes("money") ||
-        name.includes("9767")
-      ) {
-        return sum + balance;
-      }
-
+      if (name.includes("checking") || name.includes("money") || name.includes("9767")) return sum + balance;
       return sum;
     }, 0);
 
     const spendingCardBalance = accounts.reduce((sum, a) => {
       const name = String(a.account_name || "").toLowerCase();
       const balance = Number(a.current_balance || 0);
-
       if (balance <= 0) return sum;
-
-      if (
-        name.includes("spending") ||
-        name.includes("card")
-      ) {
-        return sum + balance;
-      }
-
+      if (name.includes("spending") || name.includes("card")) return sum + balance;
       return sum;
     }, 0);
 
@@ -92,22 +92,28 @@ router.get("/:userId", (req, res) => {
       billsRemaining += Number(bill.split_each_payday) === 1 ? amount / 2 : amount;
     }
 
-    const recentSpending = db.prepare(`
-      SELECT COALESCE(SUM(t.amount), 0) AS total
+    const periodRows = db.prepare(`
+      SELECT t.amount, t.description, t.merchant
       FROM transactions t
-      LEFT JOIN bank_accounts ba ON ba.id = t.account_id
-      LEFT JOIN bank_connections bc ON bc.id = ba.connection_id
+      JOIN bank_accounts ba ON ba.id = t.account_id
+      JOIN bank_connections bc ON bc.id = ba.connection_id
       WHERE t.user_id = ?
         AND bc.user_id = ?
+        AND ba.enabled = 1
+        AND bc.enabled = 1
         AND t.amount < 0
         AND t.transaction_date >= ?
         AND t.transaction_date < ?
-    `).get(
+    `).all(
       userId,
       userId,
       lastPayday.toISOString().slice(0, 10),
       nextPayday.toISOString().slice(0, 10)
-    ) as any;
+    ) as any[];
+
+    const realSpending = periodRows
+      .filter(row => isRealSpending(String(row.description || row.merchant || "")))
+      .reduce((sum, row) => sum + Math.abs(Number(row.amount || 0)), 0);
 
     const daysUntilPayday = Math.max(0, daysBetween(today, nextPayday));
     const suggestedCushion = Math.max(75, daysUntilPayday * 20);
@@ -138,7 +144,7 @@ router.get("/:userId", (req, res) => {
         }))
       },
       spending: {
-        currentPeriod: Math.abs(Number(recentSpending.total || 0))
+        currentPeriod: realSpending
       },
       recommendations: {
         suggestedCushion,
