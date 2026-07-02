@@ -24,6 +24,8 @@ router.get("/:userId", (req, res) => {
       INNER JOIN bank_connections bc ON bc.id = ba.connection_id
       WHERE t.user_id = ?
         AND bc.user_id = ?
+        AND ba.enabled = 1
+        AND bc.enabled = 1
       ORDER BY t.transaction_date DESC, t.id DESC
       LIMIT ?
     `).all(userId, userId, limit);
