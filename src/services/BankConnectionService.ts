@@ -1,4 +1,4 @@
-import { db } from "../database/db";
+﻿import { db } from "../database/db";
 import { encryption } from "./EncryptionService";
 import { simplefin, type SimpleFINAccount } from "./SimpleFINService";
 
@@ -115,8 +115,15 @@ export class BankConnectionService {
   }
 
   private saveAccounts(connectionId: number, accounts: SimpleFINAccount[]) {
+    const existing = db.prepare(`
+      SELECT id, enabled
+      FROM bank_accounts
+      WHERE connection_id = ?
+        AND external_id = ?
+    `);
+
     const insert = db.prepare(`
-      INSERT OR REPLACE INTO bank_accounts (
+      INSERT INTO bank_accounts (
         connection_id,
         external_id,
         account_name,
@@ -127,24 +134,45 @@ export class BankConnectionService {
         last_seen_at,
         enabled
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, COALESCE(
-        (SELECT enabled FROM bank_accounts WHERE external_id = ?),
-        1
-      ))
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)
+    `);
+
+    const update = db.prepare(`
+      UPDATE bank_accounts
+      SET
+        account_name = ?,
+        account_type = ?,
+        current_balance = ?,
+        available_balance = ?,
+        currency = ?,
+        last_seen_at = CURRENT_TIMESTAMP
+      WHERE id = ?
     `);
 
     const tx = db.transaction(() => {
       for (const account of accounts) {
-        insert.run(
-          connectionId,
-          account.id,
-          account.name ?? "Unnamed Account",
-          account.org?.name ?? null,
-          Number(account.balance ?? 0),
-          Number(account.available_balance ?? account.balance ?? 0),
-          account.currency ?? "USD",
-          account.id
-        );
+        const row = existing.get(connectionId, account.id) as any;
+
+        if (row) {
+          update.run(
+            account.name ?? "Unnamed Account",
+            account.org?.name ?? null,
+            Number(account.balance ?? 0),
+            Number(account.available_balance ?? account.balance ?? 0),
+            account.currency ?? "USD",
+            row.id
+          );
+        } else {
+          insert.run(
+            connectionId,
+            account.id,
+            account.name ?? "Unnamed Account",
+            account.org?.name ?? null,
+            Number(account.balance ?? 0),
+            Number(account.available_balance ?? account.balance ?? 0),
+            account.currency ?? "USD"
+          );
+        }
       }
     });
 
