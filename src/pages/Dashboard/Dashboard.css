@@ -192,3 +192,88 @@
   font-size: 12px;
   margin-top: 4px;
 }
+.transaction-summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.category-pill {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  background: rgba(255,255,255,.12);
+  color: white;
+}
+
+.category-pill.groceries { background: rgba(46,204,113,.35); }
+.category-pill.food { background: rgba(255,193,7,.35); }
+.category-pill.bills { background: rgba(231,76,60,.35); }
+.category-pill.entertainment { background: rgba(155,89,182,.35); }
+.category-pill.gas { background: rgba(52,152,219,.35); }
+.category-pill.shopping, .category-pill.amazon { background: rgba(230,126,34,.35); }
+
+.expanded-controls {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.expanded-controls label {
+  font-size: 12px;
+  opacity: .75;
+  grid-row: 1;
+}
+
+.expanded-controls select,
+.transaction-controls select {
+  background: #1f2937;
+  color: white;
+  border: 1px solid #4b5563;
+  border-radius: 9px;
+  padding: 8px 10px;
+}
+
+.expanded-controls option,
+.transaction-controls option {
+  background: #1f2937;
+  color: white;
+}
+
+.expanded-controls button {
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #159dff;
+  color: white;
+  font-weight: 900;
+}
+
+.raw-description {
+  grid-column: 1 / -1;
+  opacity: .55;
+  font-size: 12px;
+  margin: 0 0 4px;
+}
+
+.transaction-row {
+  cursor: pointer;
+}
+
+.transaction-row.expanded {
+  background: rgba(255,255,255,.04);
+  border-radius: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+@media (max-width: 900px) {
+  .expanded-controls {
+    grid-template-columns: 1fr;
+  }
+}

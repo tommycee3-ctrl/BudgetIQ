@@ -58,12 +58,18 @@ const categories = [
   "Misc"
 ];
 
+const ruleOptions = [
+  { value: "none", label: "No Rule" },
+  { value: "merchant", label: "Merchant" },
+  { value: "amount", label: "Amount" },
+  { value: "merchant_amount", label: "Both" }
+];
+
 function cleanName(tx: Transaction) {
   const raw = String(tx.description || tx.merchant || "Transaction");
   const lower = raw.toLowerCase();
 
   if (lower.includes("youtube")) return "YouTube Premium";
-  if (lower.includes("google")) return "Google";
   if (lower.includes("bakers")) return "Bakers";
   if (lower.includes("walmart") || lower.includes("wm supercenter")) return "Walmart";
   if (lower.includes("amazon prime")) return "Amazon Prime";
@@ -84,14 +90,9 @@ function cleanName(tx: Transaction) {
   if (lower.includes("roja")) return "Roja Mexican Grill";
   if (lower.includes("caseys")) return "Casey's";
   if (lower.includes("west lanes")) return "West Lanes Bowling";
-
   if (tx.merchant && tx.merchant.length > 3) return tx.merchant;
 
-  return raw
-    .replace(/\s+\d{2}\/\d{2}.*/, "")
-    .replace(/\bWEB ID:.*/i, "")
-    .replace(/\bPPD ID:.*/i, "")
-    .trim();
+  return raw.replace(/\s+\d{2}\/\d{2}.*/, "").replace(/\bWEB ID:.*/i, "").replace(/\bPPD ID:.*/i, "").trim();
 }
 
 export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: DashboardProps) {
@@ -99,8 +100,9 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bills, setBills] = useState<BillOption[]>([]);
   const [activeTile, setActiveTile] = useState<TileKey>("checking");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Record<number, string>>({});
-  const [learnPayment, setLearnPayment] = useState<Record<number, boolean>>({});
+  const [selectedRule, setSelectedRule] = useState<Record<number, string>>({});
   const [selectedBill, setSelectedBill] = useState<Record<number, string>>({});
 
   const groceriesBudget = 350;
@@ -132,17 +134,20 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
   async function saveTransaction(tx: Transaction) {
     const category = selectedCategory[tx.id] || tx.category || "Uncategorized";
     const billId = selectedBill[tx.id] || "";
+    const matchType = selectedRule[tx.id] || "none";
 
     await fetch("/api/transactions/" + tx.id + "/categorize", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         category,
-        applyToMerchant: Boolean(learnPayment[tx.id]),
-        billId: billId ? Number(billId) : null
+        billId: billId ? Number(billId) : null,
+        applyToMerchant: matchType !== "none",
+        matchType
       })
     });
 
+    setExpandedId(null);
     await load();
   }
 
@@ -187,39 +192,27 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
 
       <section className="tile-grid">
         <button className={activeTile === "checking" ? "dash-tile active" : "dash-tile"} onClick={() => setActiveTile("checking")}>
-          <span>Checking</span>
-          <strong>{money(data.accounts.checkingBalance)}</strong>
-          <small>Current pay period transactions</small>
+          <span>Checking</span><strong>{money(data.accounts.checkingBalance)}</strong><small>Current pay period transactions</small>
         </button>
 
         <button className={activeTile === "groceries" ? "dash-tile active" : "dash-tile"} onClick={() => setActiveTile("groceries")}>
-          <span>Groceries</span>
-          <strong>{money(groceryLeft)}</strong>
-          <small>{money(grocerySpent)} spent of {money(groceriesBudget)}</small>
+          <span>Groceries</span><strong>{money(groceryLeft)}</strong><small>{money(grocerySpent)} spent of {money(groceriesBudget)}</small>
         </button>
 
         <button className={activeTile === "bills" ? "dash-tile active" : "dash-tile"} onClick={() => setActiveTile("bills")}>
-          <span>Bills</span>
-          <strong>{money(data.bills.remaining)}</strong>
-          <small>{data.bills.count} due this pay period</small>
+          <span>Bills</span><strong>{money(data.bills.remaining)}</strong><small>{data.bills.count} due this pay period</small>
         </button>
 
         <button className={activeTile === "spendingCard" ? "dash-tile active" : "dash-tile"} onClick={() => setActiveTile("spendingCard")}>
-          <span>{cardLabel}</span>
-          <strong>{money(data.accounts.spendingCardBalance)}</strong>
-          <small>Connected card/account later</small>
+          <span>{cardLabel}</span><strong>{money(data.accounts.spendingCardBalance)}</strong><small>Connected card/account later</small>
         </button>
 
         <button className={activeTile === "misc" ? "dash-tile active" : "dash-tile"} onClick={() => setActiveTile("misc")}>
-          <span>Misc</span>
-          <strong>{money(Math.abs(miscTransactions.reduce((sum, tx) => sum + Number(tx.amount), 0)))}</strong>
-          <small>Uncategorized this pay period</small>
+          <span>Misc</span><strong>{money(Math.abs(miscTransactions.reduce((sum, tx) => sum + Number(tx.amount), 0)))}</strong><small>Uncategorized this pay period</small>
         </button>
 
         <button className={activeTile === "monthly" ? "dash-tile active" : "dash-tile"} onClick={() => setActiveTile("monthly")}>
-          <span>This Pay Period Spent</span>
-          <strong>{money(data.spending.currentPeriod)}</strong>
-          <small>Imported bank transactions</small>
+          <span>This Pay Period Spent</span><strong>{money(data.spending.currentPeriod)}</strong><small>Imported bank transactions</small>
         </button>
       </section>
 
@@ -252,61 +245,59 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
           <div className="detail-list">
             {(data.bills.items || []).map((bill, index) => (
               <div className="detail-row" key={index}>
-                <div>
-                  <strong>{bill.name}</strong>
-                  <p>{bill.split ? "Split each payday" : "Due this pay period"}</p>
-                </div>
+                <div><strong>{bill.name}</strong><p>{bill.split ? "Split each payday" : "Due this pay period"}</p></div>
                 <strong>{money(bill.amount)}</strong>
               </div>
             ))}
           </div>
         ) : (
           <div className="detail-list">
-            {selectedTransactions.slice(0, 60).map(tx => (
-              <div className="detail-row transaction-row" key={tx.id}>
-                <div className="transaction-main">
-                  <strong>{cleanName(tx)}</strong>
-                  <p>{tx.transactionDate} · {tx.accountName || "Account"} · Current: {tx.category}</p>
-                  <p className="raw-description">{tx.description}</p>
+            {selectedTransactions.slice(0, 60).map(tx => {
+              const isOpen = expandedId === tx.id;
+              const category = selectedCategory[tx.id] || tx.category || "Uncategorized";
 
-                  <div className="transaction-controls">
-                    <select
-                      value={selectedCategory[tx.id] || tx.category || "Uncategorized"}
-                      onChange={e => setSelectedCategory({ ...selectedCategory, [tx.id]: e.target.value })}
-                    >
-                      {categories.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
+              return (
+                <div className={isOpen ? "detail-row transaction-row expanded" : "detail-row transaction-row"} key={tx.id} onClick={() => setExpandedId(isOpen ? null : tx.id)}>
+                  <div className="transaction-main">
+                    <div className="transaction-summary">
+                      <div>
+                        <strong>{cleanName(tx)}</strong>
+                        <p>{tx.transactionDate} · {tx.accountName || "Account"}</p>
+                      </div>
+                      <span className={"category-pill " + category.toLowerCase().replaceAll(" ", "-")}>{category}</span>
+                    </div>
 
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(learnPayment[tx.id])}
-                        onChange={e => setLearnPayment({ ...learnPayment, [tx.id]: e.target.checked })}
-                      />
-                      Learn this payment
-                    </label>
+                    {isOpen && (
+                      <div className="expanded-controls" onClick={e => e.stopPropagation()}>
+                        <p className="raw-description">{tx.description}</p>
 
-                    <select
-                      value={selectedBill[tx.id] || ""}
-                      onChange={e => setSelectedBill({ ...selectedBill, [tx.id]: e.target.value })}
-                    >
-                      <option value="">Not a bill payment</option>
-                      {unpaidBills.map(bill => (
-                        <option key={bill.id} value={bill.id}>
-                          Paid bill: {bill.name} - {money(bill.amount)}
-                        </option>
-                      ))}
-                    </select>
+                        <label>Category</label>
+                        <select value={category} onChange={e => setSelectedCategory({ ...selectedCategory, [tx.id]: e.target.value })}>
+                          {categories.map(item => <option key={item} value={item}>{item}</option>)}
+                        </select>
 
-                    <button onClick={() => saveTransaction(tx)}>Save</button>
+                        <label>Bill</label>
+                        <select value={selectedBill[tx.id] || ""} onChange={e => setSelectedBill({ ...selectedBill, [tx.id]: e.target.value })}>
+                          <option value="">Not a bill payment</option>
+                          {unpaidBills.map(bill => (
+                            <option key={bill.id} value={bill.id}>Paid bill: {bill.name} - {money(bill.amount)}</option>
+                          ))}
+                        </select>
+
+                        <label>Assign Rule</label>
+                        <select value={selectedRule[tx.id] || "none"} onChange={e => setSelectedRule({ ...selectedRule, [tx.id]: e.target.value })}>
+                          {ruleOptions.map(rule => <option key={rule.value} value={rule.value}>{rule.label}</option>)}
+                        </select>
+
+                        <button onClick={() => saveTransaction(tx)}>Save</button>
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                <strong>{money(tx.amount)}</strong>
-              </div>
-            ))}
+                  <strong>{money(tx.amount)}</strong>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
