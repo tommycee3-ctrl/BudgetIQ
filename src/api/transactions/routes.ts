@@ -47,7 +47,7 @@ router.get("/:userId", (req, res) => {
 router.put("/:id/categorize", (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { category, applyToMerchant, billId } = req.body;
+    const { category, applyToMerchant, billId, matchType } = req.body;
 
     const tx = db.prepare(`
       SELECT id, user_id, merchant, description, amount
@@ -58,6 +58,7 @@ router.put("/:id/categorize", (req, res) => {
     if (!tx) return res.status(404).json({ ok: false, message: "Transaction not found." });
 
     const matchText = String(tx.merchant || tx.description || "").trim();
+    const ruleType = matchType || "merchant_amount";
 
     db.prepare(`
       UPDATE transactions
@@ -100,18 +101,21 @@ router.put("/:id/categorize", (req, res) => {
             bill_id,
             match_text,
             expected_amount,
-            amount_tolerance_percent
+            amount_tolerance_percent,
+            match_type
           )
-          VALUES (?, ?, ?, ?, 20)
+          VALUES (?, ?, ?, ?, 20, ?)
           ON CONFLICT(user_id, bill_id, match_text)
           DO UPDATE SET
             expected_amount = excluded.expected_amount,
-            amount_tolerance_percent = excluded.amount_tolerance_percent
+            amount_tolerance_percent = excluded.amount_tolerance_percent,
+            match_type = excluded.match_type
         `).run(
           tx.user_id,
           Number(billId),
           matchText,
-          Math.abs(Number(tx.amount || 0))
+          Math.abs(Number(tx.amount || 0)),
+          ruleType
         );
       }
     }
