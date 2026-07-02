@@ -50,7 +50,7 @@ router.put("/:id/categorize", (req, res) => {
     const { category, applyToMerchant, billId } = req.body;
 
     const tx = db.prepare(`
-      SELECT id, user_id, merchant, description
+      SELECT id, user_id, merchant, description, amount
       FROM transactions
       WHERE id = ?
     `).get(id) as any;
@@ -65,7 +65,7 @@ router.put("/:id/categorize", (req, res) => {
       WHERE id = ?
     `).run(category, id);
 
-    if (applyToMerchant && matchText) {
+    if (applyToMerchant && matchText && !billId) {
       db.prepare(`
         INSERT INTO transaction_category_rules (user_id, match_text, category)
         VALUES (?, ?, ?)
@@ -95,10 +95,24 @@ router.put("/:id/categorize", (req, res) => {
 
       if (applyToMerchant && matchText) {
         db.prepare(`
-          INSERT INTO bill_match_rules (user_id, bill_id, match_text)
-          VALUES (?, ?, ?)
-          ON CONFLICT(user_id, bill_id, match_text) DO NOTHING
-        `).run(tx.user_id, Number(billId), matchText);
+          INSERT INTO bill_match_rules (
+            user_id,
+            bill_id,
+            match_text,
+            expected_amount,
+            amount_tolerance_percent
+          )
+          VALUES (?, ?, ?, ?, 20)
+          ON CONFLICT(user_id, bill_id, match_text)
+          DO UPDATE SET
+            expected_amount = excluded.expected_amount,
+            amount_tolerance_percent = excluded.amount_tolerance_percent
+        `).run(
+          tx.user_id,
+          Number(billId),
+          matchText,
+          Math.abs(Number(tx.amount || 0))
+        );
       }
     }
 
