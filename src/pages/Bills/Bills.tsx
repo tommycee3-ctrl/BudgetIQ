@@ -1,5 +1,4 @@
-@'
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import "./Bills.css";
 
 type Bill = {
@@ -21,7 +20,7 @@ export function Bills({ userId }: { userId: number }) {
   const [splitEachPayday, setSplitEachPayday] = useState(false);
 
   async function loadBills() {
-    const res = await fetch(`/api/bills/${userId}`);
+    const res = await fetch("/api/bills/" + userId);
     const data = await res.json();
     if (data.ok) setBills(data.bills);
   }
@@ -32,13 +31,7 @@ export function Bills({ userId }: { userId: number }) {
     await fetch("/api/bills", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId,
-        name,
-        amount,
-        dueDay,
-        splitEachPayday
-      })
+      body: JSON.stringify({ userId, name, amount, dueDay, splitEachPayday })
     });
 
     setName("");
@@ -49,7 +42,7 @@ export function Bills({ userId }: { userId: number }) {
   }
 
   async function togglePaid(bill: Bill) {
-    await fetch(`/api/bills/${bill.id}`, {
+    await fetch("/api/bills/" + bill.id, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -65,7 +58,7 @@ export function Bills({ userId }: { userId: number }) {
   }
 
   async function deleteBill(id: number) {
-    await fetch(`/api/bills/${id}`, { method: "DELETE" });
+    await fetch("/api/bills/" + id, { method: "DELETE" });
     loadBills();
   }
 
@@ -116,4 +109,3 @@ export function Bills({ userId }: { userId: number }) {
     </div>
   );
 }
-'@ | Set-Content src\pages\Bills\Bills.tsx -Encoding UTF8

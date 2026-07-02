@@ -52,9 +52,15 @@ router.put("/:id/category", (req, res) => {
       return res.status(404).json({ ok: false, message: "Transaction not found." });
     }
 
-    const merchantText = String(tx.merchant || tx.description || "").trim();
+    const matchText = String(tx.merchant || tx.description || "").trim();
 
-    if (applyToMerchant && merchantText) {
+    if (applyToMerchant && matchText) {
+      db.prepare(`
+        INSERT INTO transaction_category_rules (user_id, match_text, category)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, match_text) DO UPDATE SET category = excluded.category
+      `).run(tx.user_id, matchText, category);
+
       db.prepare(`
         UPDATE transactions
         SET category = ?, reviewed = 1
@@ -66,8 +72,8 @@ router.put("/:id/category", (req, res) => {
       `).run(
         category,
         tx.user_id,
-        "%" + merchantText.toLowerCase() + "%",
-        "%" + merchantText.toLowerCase() + "%"
+        "%" + matchText.toLowerCase() + "%",
+        "%" + matchText.toLowerCase() + "%"
       );
     } else {
       db.prepare(`
