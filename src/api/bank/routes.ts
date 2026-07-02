@@ -33,6 +33,7 @@ router.get("/user-accounts/:userId", (req, res) => {
       LEFT JOIN bank_accounts ba ON ba.connection_id = bc.id
       WHERE bc.user_id = ?
         AND bc.enabled = 1
+        AND (ba.hidden = 0 OR ba.hidden IS NULL)
       ORDER BY bc.created_at DESC, ba.account_name
     `).all(userId) as any[];
 
@@ -131,3 +132,4 @@ router.post("/sync/:connectionId", async (req, res) => {
 });
 
 export default router;
+
