@@ -58,13 +58,49 @@ const categories = [
   "Misc"
 ];
 
+function cleanName(tx: Transaction) {
+  const raw = String(tx.description || tx.merchant || "Transaction");
+  const lower = raw.toLowerCase();
+
+  if (lower.includes("youtube")) return "YouTube Premium";
+  if (lower.includes("google")) return "Google";
+  if (lower.includes("bakers")) return "Bakers";
+  if (lower.includes("walmart") || lower.includes("wm supercenter")) return "Walmart";
+  if (lower.includes("amazon prime")) return "Amazon Prime";
+  if (lower.includes("amazon") || lower.includes("amzn")) return "Amazon";
+  if (lower.includes("affirm")) return "Affirm";
+  if (lower.includes("gm financial")) return "GM Financial";
+  if (lower.includes("cricket")) return "Cricket";
+  if (lower.includes("oppd")) return "OPPD";
+  if (lower.includes("mud")) return "MUD";
+  if (lower.includes("dashpass")) return "DashPass";
+  if (lower.includes("state farm")) return "State Farm";
+  if (lower.includes("google fiber")) return "Google Fiber";
+  if (lower.includes("vasa")) return "VASA";
+  if (lower.includes("plex")) return "Plex";
+  if (lower.includes("crunchyroll")) return "Crunchyroll";
+  if (lower.includes("cornhusker")) return "Cornhusker Wash";
+  if (lower.includes("mcdonald")) return "McDonald's";
+  if (lower.includes("roja")) return "Roja Mexican Grill";
+  if (lower.includes("caseys")) return "Casey's";
+  if (lower.includes("west lanes")) return "West Lanes Bowling";
+
+  if (tx.merchant && tx.merchant.length > 3) return tx.merchant;
+
+  return raw
+    .replace(/\s+\d{2}\/\d{2}.*/, "")
+    .replace(/\bWEB ID:.*/i, "")
+    .replace(/\bPPD ID:.*/i, "")
+    .trim();
+}
+
 export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bills, setBills] = useState<BillOption[]>([]);
   const [activeTile, setActiveTile] = useState<TileKey>("checking");
   const [selectedCategory, setSelectedCategory] = useState<Record<number, string>>({});
-  const [alwaysMerchant, setAlwaysMerchant] = useState<Record<number, boolean>>({});
+  const [learnPayment, setLearnPayment] = useState<Record<number, boolean>>({});
   const [selectedBill, setSelectedBill] = useState<Record<number, string>>({});
 
   const groceriesBudget = 350;
@@ -102,7 +138,7 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         category,
-        applyToMerchant: Boolean(alwaysMerchant[tx.id]),
+        applyToMerchant: Boolean(learnPayment[tx.id]),
         billId: billId ? Number(billId) : null
       })
     });
@@ -229,8 +265,9 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
             {selectedTransactions.slice(0, 60).map(tx => (
               <div className="detail-row transaction-row" key={tx.id}>
                 <div className="transaction-main">
-                  <strong>{tx.merchant || tx.description}</strong>
+                  <strong>{cleanName(tx)}</strong>
                   <p>{tx.transactionDate} · {tx.accountName || "Account"} · Current: {tx.category}</p>
+                  <p className="raw-description">{tx.description}</p>
 
                   <div className="transaction-controls">
                     <select
@@ -245,10 +282,10 @@ export function Dashboard({ userId, userName, hasAmazonFlex, cardLabel }: Dashbo
                     <label>
                       <input
                         type="checkbox"
-                        checked={Boolean(alwaysMerchant[tx.id])}
-                        onChange={e => setAlwaysMerchant({ ...alwaysMerchant, [tx.id]: e.target.checked })}
+                        checked={Boolean(learnPayment[tx.id])}
+                        onChange={e => setLearnPayment({ ...learnPayment, [tx.id]: e.target.checked })}
                       />
-                      Always this merchant
+                      Learn this payment
                     </label>
 
                     <select
